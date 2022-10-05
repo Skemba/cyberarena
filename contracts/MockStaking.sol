@@ -12,7 +12,10 @@ contract MockStaking is CyberArenaStaking{
 
     uint256 mockTime = 0;
 
-    constructor() CyberArenaStaking(){
+    constructor(        IERC20 _stakingToken,
+        uint16 _penaltyDays,
+        uint16 _penaltyBP,
+        address _treasury) CyberArenaStaking(_stakingToken, _penaltyDays, _penaltyBP, _treasury) {
     }
 
     function setCurrentTime(uint256 _time)

@@ -48,8 +48,8 @@ describe("TokenVesting", function () {
       const liquidityBalance = await testToken.balanceOf(
         addr2.address
       );
-      expect(rewardsBalance).to.equal(500000);
-      expect(liquidityBalance).to.equal(250000);
+      expect(rewardsBalance).to.equal(5000000);
+      expect(liquidityBalance).to.equal(2500000);
       expect(vestingContractBalance).to.equal(990000000);
       expect(await tokenVesting.getWithdrawableAmount()).to.equal(990000000);
 

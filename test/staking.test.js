@@ -27,10 +27,10 @@ describe("TokenStaking", function () {
 
     it("Should stake and unstake less than 10 days", async function () {
       // deploy staking contract
-      const tokenStaking = await TokenStaking.deploy();
+      const tokenStaking = await TokenStaking.deploy(testToken.address, 10, 12*1e2, addr2.address);
       await tokenStaking.deployed();
 
-      await tokenStaking.initialize(testToken.address, 10, 12*1e2, addr2.address)
+      await testToken.addToTransferWhitelist([tokenStaking.address])
       let penDays = await tokenStaking.penaltyDays()
       expect(penDays).to.equal(10)
 
@@ -49,17 +49,18 @@ describe("TokenStaking", function () {
       const halfTime = startTime + duration / 2;
       await tokenStaking.setCurrentTime(halfTime);
 
-      await tokenStaking.unstake(0);
-      expect(await testToken.balanceOf(owner.address)).to.equal(4871200000);
+      await tokenStaking.unstake();
+      
+      expect(await testToken.balanceOf(owner.address)).to.equal(4880000000);
       expect(await tokenStaking.totalShares()).to.equal(0)
     });
 
     it("Should stake and unstake more than 10 days", async function () {
       // deploy staking contract
-      const tokenStaking = await TokenStaking.deploy();
+      const tokenStaking = await TokenStaking.deploy(testToken.address, 10, 12*1e2, addr2.address);
       await tokenStaking.deployed();
 
-      await tokenStaking.initialize(testToken.address, 10, 12*1e2, addr2.address)
+      await testToken.addToTransferWhitelist([tokenStaking.address])
       let penDays = await tokenStaking.penaltyDays()
       expect(penDays).to.equal(10)
 
@@ -78,8 +79,8 @@ describe("TokenStaking", function () {
       const halfTime = startTime + duration / 2;
       await tokenStaking.setCurrentTime(halfTime);
 
-      await tokenStaking.unstake(0);
-      expect(await testToken.balanceOf(owner.address)).to.equal(4990000000);
+      await tokenStaking.unstake();
+      expect(await testToken.balanceOf(owner.address)).to.equal(5000000000);
       expect(await tokenStaking.totalShares()).to.equal(0)
     });
 
@@ -88,10 +89,10 @@ describe("TokenStaking", function () {
       await testToken.addToTransferWhitelist([owner.address])
       expect(await testToken.isWhitelisted(owner.address)).to.equal(true)
       // deploy staking contract
-      const tokenStaking = await TokenStaking.deploy();
+      const tokenStaking = await TokenStaking.deploy(testToken.address, 10, 12*1e2, addr2.address);
       await tokenStaking.deployed();
 
-      await tokenStaking.initialize(testToken.address, 10, 12*1e2, addr2.address)
+      await testToken.addToTransferWhitelist([tokenStaking.address])
       let penDays = await tokenStaking.penaltyDays()
       expect(penDays).to.equal(10)
 
@@ -110,7 +111,7 @@ describe("TokenStaking", function () {
       const halfTime = startTime + duration / 2;
       await tokenStaking.setCurrentTime(halfTime);
 
-      await tokenStaking.unstake(0);
+      await tokenStaking.unstake();
       expect(await testToken.balanceOf(owner.address)).to.equal(5000000000);
       expect(await tokenStaking.totalShares()).to.equal(0)
     });

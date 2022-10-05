@@ -1,19 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesCompUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20VotesComp.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, ReentrancyGuardUpgradeable {
-    using SafeERC20Upgradeable for IERC20Upgradeable;
+contract CyberArenaStaking is ERC20, Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    /// @dev Max penalty days
+    uint256 private constant PENALTY_DAYS_LIMIT = 90;
+
+    /// @dev Max penalty base points
+    uint256 private constant PENALTY_BP_LIMIT = 1e4;
 
     /// @dev Staking token
-    IERC20Upgradeable public stakingToken;
+    IERC20 public stakingToken;
 
     /// @dev Info about each stake by user address
-    mapping(address => Stake[]) public stakers;
+    mapping(address => Stake) public stakers;
 
     /// @dev Penalty days value
     uint16 public penaltyDays;
@@ -36,6 +42,10 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
         uint192 shares;
     }
 
+    event SetPenaltyDays(uint16 penaltyDays);
+    event SetPenaltyBP(uint16 penaltyBP);
+    event SetTreasury(address treasury);
+
     /**
      * @notice Initializer
      * @param _stakingToken Staking token address
@@ -43,16 +53,14 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
      * @param _penaltyBP Penalty base points value
      * @param _treasury The address to which the penalty tokens will be transferred
      */
-    function initialize(
-        IERC20Upgradeable _stakingToken,
+    constructor(
+        IERC20 _stakingToken,
         uint16 _penaltyDays,
         uint16 _penaltyBP,
         address _treasury
-    ) external virtual initializer {
-        __ERC20_init("Staked CAT", "stCAT");
-        __ERC20Permit_init("Staked CAT");
-        __Ownable_init();
-        __ReentrancyGuard_init();
+    ) 
+        ERC20("Staked CAT", "stCAT")
+    {
 
         require(address(_stakingToken) != address(0), "CyberArenaStaking: staking token is the zero address");
         require(_treasury != address(0), "CyberArenaStaking: treasury is the zero address");
@@ -68,29 +76,30 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
      * @param _amount amount to stake
      */
     function stake(uint128 _amount) external nonReentrant {
+        Stake storage stakeRef = stakers[msg.sender];
+        require(stakeRef.stakedTimestamp == 0, "CyberArenaStaking: already staked");
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
 
         _mint(msg.sender, _amount);
 
         totalShares += _amount;
-        stakers[msg.sender].push(Stake(
+        stakers[msg.sender] = Stake(
             false,
             _amount,
             uint48(getCurrentTime()),
             penaltyDays,
             penaltyBP,
             _amount
-        ));
+        );
     }
 
     /**
      * @notice Unstake staking tokens
      * @notice If penalty period is not over grab penalty
-     * @param _stakeIndex Stake index in array of user's stakes
      */
-    function unstake(uint256 _stakeIndex) external nonReentrant {
-        require(_stakeIndex < stakers[msg.sender].length, "CyberArenaStaking: invalid index");
-        Stake storage stakeRef = stakers[msg.sender][_stakeIndex];
+    function unstake() external nonReentrant {
+        Stake storage stakeRef = stakers[msg.sender];
+        require(stakeRef.stakedTimestamp != 0, "CyberArenaStaking: nothing is staked");
         require(!stakeRef.unstaked, "CyberArenaStaking: unstaked already");
 
         _burn(msg.sender, stakeRef.amount);
@@ -114,7 +123,9 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
      * @param _penaltyDays New penalty days value
      */
     function setPenaltyDays(uint16 _penaltyDays) external onlyOwner {
+        require(_penaltyDays <= PENALTY_DAYS_LIMIT, "CyberArenaStaking: penalty days exceeds limit");
         penaltyDays = _penaltyDays;
+        emit SetPenaltyDays(_penaltyDays);
     }
 
     /**
@@ -122,7 +133,9 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
      * @param _penaltyBP New penalty base points value
      */
     function setPenaltyBP(uint16 _penaltyBP) external onlyOwner {
+        require(_penaltyBP <= PENALTY_BP_LIMIT, "CyberArenaStaking: penalty BP exceeds limit");
         penaltyBP = _penaltyBP;
+        emit SetPenaltyBP(_penaltyBP);
     }
 
     /**
@@ -130,8 +143,9 @@ contract CyberArenaStaking is ERC20VotesCompUpgradeable, OwnableUpgradeable, Ree
      * @param _treasury New treasury address
      */
     function setTreasury(address _treasury) external onlyOwner {
-        // require(_treasury != address(0), "CyberArenaStaking: treasury is the zero address");
+        require(_treasury != address(0), "CyberArenaStaking: treasury is the zero address");
         treasury = _treasury;
+         emit SetTreasury(_treasury);
     }
 
     // ** INTERNAL **

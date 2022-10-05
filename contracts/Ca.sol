@@ -5,8 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "hardhat/console.sol";
-
 contract Ca is ERC20, ERC20Burnable, Ownable {
   address liquidity;
   address rewards;
@@ -19,23 +17,33 @@ contract Ca is ERC20, ERC20Burnable, Ownable {
     liquidity = _liquidity;
   }
 
-  function isWhitelisted(address owner) public view returns (bool) {
+  event AddressesWhitelisted(address[] addresses);
+
+  function isWhitelisted(address owner) external view returns (bool) {
     return transferWhitelist[owner];
   }
 
   function addToTransferWhitelist(address[] calldata addresses) external onlyOwner {
-    for (uint256 i = 0; i < addresses.length; i++) {
+    uint256 length = addresses.length;
+    for (uint256 i = 0; i < length; i++) {
         transferWhitelist[addresses[i]] = true;
     }
+
+    emit AddressesWhitelisted(addresses);
   }
 
-  function transfer(address to, uint256 amount) public virtual override returns (bool) {
-  if (transferWhitelist[to]) {
-    return super.transfer(to, amount);
-  }
-  burn(25*amount/100000);
-  super.transfer(rewards, 50*amount/100000);
-  super.transfer(liquidity, 25*amount/100000);
-  return super.transfer(to, 99*amount/100);
-  }
+  function _transfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+    if (transferWhitelist[from] || transferWhitelist[to]) {
+      return super._transfer(from, to, amount);
+    }
+    
+    _burn(from, 25*amount/10000);
+    super._transfer(from, rewards, 50*amount/10000);
+    super._transfer(from, liquidity, 25*amount/10000);
+    return super._transfer(from, to, 99*amount/100);
+    }
 }

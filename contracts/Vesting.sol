@@ -38,14 +38,6 @@ contract Vesting is Ownable, ReentrancyGuard{
     event Released(uint256 amount);
 
     /**
-    * @dev Reverts if no vesting schedule matches the passed beneficiary address.
-    */
-    modifier onlyIfVestingScheduleExists(address addr) {
-        require(vestingSchedules[addr].initialized == true);
-        _;
-    }
-
-    /**
      * @dev Creates a vesting contract.
      * @param token_ address of the ERC20 token contract
      */
@@ -104,6 +96,8 @@ contract Vesting is Ownable, ReentrancyGuard{
         require(_duration > 0, "TokenVesting: duration must be > 0");
         require(_amount > 0, "TokenVesting: amount must be > 0");
         require(_slicePeriodSeconds >= 1, "TokenVesting: slicePeriodSeconds must be >= 1");
+        require(_start >= getCurrentTime(), "TokenVesting: _start must be later than latest block");
+        require(!vestingSchedules[_beneficiary].initialized);
         vestingSchedules[_beneficiary] = VestingSchedule(
             true,
             _beneficiary,
